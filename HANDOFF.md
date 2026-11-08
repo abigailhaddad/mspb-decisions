@@ -4,7 +4,7 @@
 `.github/workflows/refresh.yml`, daily 10:40 UTC. Six requests to mspb.gov, two seconds apart, honest User-Agent, stops on a 403 or 429. Merges into `decisions.parquet` on Hugging Face and uploads only when rows were added.
 
 ## What you need
-- A GitHub repo (fork this one) and a Hugging Face dataset to write to. Change `REPO` in `src/refresh.py` and `HF` in the workflow's secret.
+- A GitHub repo (fork this one) and a Hugging Face dataset to write to. Change `REPO` in `src/refresh.py`.
 - A repo secret `HF_TOKEN` with write access to that dataset. No LLM, no other key.
 - The explorer site is a config in the `dataset-explorer` repo (`configs/mspb.json`), deployed to Cloudflare Pages by that repo's workflow. It reads the parquet from Hugging Face when the page loads, so it never needs a refresh.
 
