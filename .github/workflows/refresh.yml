@@ -1,0 +1,49 @@
+name: Refresh MSPB decisions
+
+# Daily 10:40 UTC: fetch MSPB's six listing manifests (about 12 seconds, one request every 2 seconds),
+# add anything new to the Hugging Face dataset, upload only if something was added. A failed run
+# emails the repo owner. Needs the HF_TOKEN secret (write access to abigailhaddad/mspb-decisions).
+
+on:
+  schedule:
+    - cron: "40 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q tests
+      - name: Fetch, merge, upload
+        run: python src/refresh.py
+      - name: Summary
+        if: ${{ always() }}
+        run: '[ -f out/summary.json ] && python -c "import json;d=json.load(open(\"out/summary.json\"));d.pop(\"excluded\");print(d)" >> "$GITHUB_STEP_SUMMARY" || true'
+
+      # GitHub disables scheduled workflows in a public repo after 60 days with no commits.
+      - name: Keepalive commit
+        if: ${{ always() }}
+        run: |
+          age=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "newest commit is $age days old"
+          if [ "$age" -ge 45 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Keepalive: no commits in $age days"
+            git push
+          fi
