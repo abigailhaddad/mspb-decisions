@@ -60,3 +60,18 @@ def test_fetch_rejects_html(monkeypatch, tmp_path):
 def test_fetch_rejects_small_manifest(monkeypatch, tmp_path):
     with pytest.raises(ValueError, match="only 3 rows"):
         run_fetch(monkeypatch, tmp_path, FakeResp(200, {"DOCUMENT_TYPE": "PRECEDENTIAL", "data": [1, 2, 3]}))
+
+
+def test_published_read_error_is_not_first_run(monkeypatch):
+    import urllib.error
+
+    def boom(code):
+        def f(url):
+            raise urllib.error.HTTPError(url, code, "x", None, None)
+        return f
+
+    monkeypatch.setattr(refresh.pd, "read_parquet", boom(503))
+    with pytest.raises(urllib.error.HTTPError):
+        refresh.load_published()
+    monkeypatch.setattr(refresh.pd, "read_parquet", boom(404))
+    assert refresh.load_published() is None

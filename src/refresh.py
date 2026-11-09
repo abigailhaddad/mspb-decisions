@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 from datetime import date
 
 import pandas as pd
@@ -69,6 +70,19 @@ def merge(old, new):
     return merged.reset_index(drop=True), added, len(kept)
 
 
+def load_published():
+    """The published file, or None only when Hugging Face says it does not exist (404).
+    Any other failure (429, 5xx, timeout) must stop the run: treating it as "first run" would
+    publish only today's manifests and drop every row MSPB has since removed from them."""
+    try:
+        return pd.read_parquet(f"https://huggingface.co/datasets/{REPO}/resolve/main/{FILE}")
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            raise
+        print("no published file yet:", e)
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
@@ -78,11 +92,7 @@ def main():
     fetch(args.manifests)
     records, report = mspb.load_snapshot_report(args.manifests)
     new = pd.DataFrame(records)
-    try:
-        old = pd.read_parquet(f"https://huggingface.co/datasets/{REPO}/resolve/main/{FILE}")
-    except Exception as e:  # first run only
-        print("no published file yet:", e)
-        old = None
+    old = load_published()
     merged, added, kept_old = merge(old, new)
     if old is not None and len(merged) < len(old):
         sys.exit(f"would shrink the dataset: {len(old)} -> {len(merged)}; not uploading")
