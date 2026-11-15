@@ -105,13 +105,18 @@ def main():
                "newest": str(merged["date"].max())}
     json.dump(summary, open("out/summary.json", "w"), indent=1)
     print({k: v for k, v in summary.items() if k != "excluded"}, "excluded:", len(report["excluded"]))
+    import card
+    with open("out/README.md", "w", encoding="utf-8") as fh:
+        fh.write(card.render(merged, report["excluded"], summary["as_of"]))
     if args.dry_run or added == 0 and old is not None:
         print("nothing uploaded" if not args.dry_run else "dry run: nothing uploaded")
         return
-    from huggingface_hub import HfApi
-    a = HfApi()
-    a.upload_file(path_or_fileobj=f"out/{FILE}", path_in_repo=FILE, repo_id=REPO, repo_type="dataset",
-                  commit_message=f"Refresh {summary['as_of']}: +{added} decisions, newest {summary['newest']}")
+    from huggingface_hub import CommitOperationAdd, HfApi
+    HfApi().create_commit(
+        repo_id=REPO, repo_type="dataset",
+        operations=[CommitOperationAdd(path_in_repo=FILE, path_or_fileobj=f"out/{FILE}"),
+                    CommitOperationAdd(path_in_repo="README.md", path_or_fileobj="out/README.md")],
+        commit_message=f"Refresh {summary['as_of']}: +{added} decisions, newest {summary['newest']}")
 
 
 if __name__ == "__main__":
