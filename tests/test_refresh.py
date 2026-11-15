@@ -75,3 +75,14 @@ def test_published_read_error_is_not_first_run(monkeypatch):
         refresh.load_published()
     monkeypatch.setattr(refresh.pd, "read_parquet", boom(404))
     assert refresh.load_published() is None
+
+
+def test_card_counts_come_from_the_table():
+    import card
+    d = pd.DataFrame({"type": ["precedential", "precedential", "nonprecedential"],
+                      "date": ["1979-02-21", "2026-11-09", "2001-01-01"], "has_text": [False] * 3})
+    c = card.render(d, [{"manifest": "m.json", "reason": "bad or blank date", "date": "1087/11/27"}], "2026-11-15")
+    assert "3 decisions (2 precedential, 1 nonprecedential), 1979-02-21 to 2026-11-09" in c
+    assert "`has_text` is false on every row" in c and "almost no" not in c
+    assert "1 rows with no usable file name or date: `1087/11/27`" in c
+    assert "Last refreshed 2026-11-15" in c
