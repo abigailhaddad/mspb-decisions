@@ -16,7 +16,8 @@ def _excluded_line(excluded):
             f"{shown}{more}.")
 
 
-def render(df: pd.DataFrame, excluded: list, as_of: str) -> str:
+def render(df: pd.DataFrame, excluded: list, as_of: str, dictionary: str = "") -> str:
+    """`dictionary` is the data dictionary section from src/data_docs.py, placed before the closing line."""
     n = len(df)
     by_type = df["type"].value_counts()
     prec, nonprec = int(by_type.get("precedential", 0)), int(by_type.get("nonprecedential", 0))
@@ -38,5 +39,8 @@ This is metadata only: date, docket, appellant name, agency, a coarse order titl
 
 {_excluded_line(excluded)} Appellant names are as MSPB lists them. `case_kind` is a plain-language label for the case-type codes we were sure of; for any other code it repeats the code from `case_code`, and it is `(unknown)` when there is no code.
 
-Several manifests stopped updating in September 2026; the current listing manifests are read first, then the stale ones are unioned by file name. A daily job adds new decisions and never removes any: https://github.com/abigailhaddad/mspb-decisions
+Several manifests stopped updating in September 2026; the current listing manifests are read first, then the stale ones are unioned by file name.
+
+{dictionary}
+A daily job adds new decisions and never removes any: https://github.com/abigailhaddad/mspb-decisions
 """

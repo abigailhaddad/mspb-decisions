@@ -14,3 +14,18 @@ A GitHub Action runs every day, adds new decisions, and uploads only if somethin
     HF_TOKEN=... python src/refresh.py  # the real thing
 
 `src/mspb.py` turns the manifests into rows. Several MSPB manifests stopped updating in September 2026, so the current listing manifests are read first and the stale ones are unioned in by file name.
+
+## Data dictionary
+
+[`docs/data_dictionary.md`](docs/data_dictionary.md) lists every column of the table with its type, a description, the share of rows that have a value, and an example. Types, counts and examples are read from the published parquet files; descriptions are in [`docs/tables.toml`](docs/tables.toml), written from the code that builds each column. Regenerate it with
+
+    python src/data_docs.py fetch data   # download the current files from Hugging Face
+    python src/data_docs.py write data   # write docs/data_dictionary.md
+
+`src/refresh.py` puts the same section on the Hugging Face dataset card. Both stop with an error if a parquet column has no description in `docs/tables.toml` or a described column is gone, and the daily workflow runs that check too.
+
+## SQLite download
+
+The daily workflow builds `mspb-decisions.sqlite` from the files on Hugging Face (table `decisions`, plus `_source`, which records the Hugging Face commit) and attaches it to the GitHub release [`latest-data`](https://github.com/abigailhaddad/mspb-decisions/releases/tag/latest-data). The release is replaced whenever the Hugging Face commit changes. To build it yourself:
+
+    python src/build_sqlite.py data mspb-decisions.sqlite

@@ -105,9 +105,11 @@ def main():
                "newest": str(merged["date"].max())}
     json.dump(summary, open("out/summary.json", "w"), indent=1)
     print({k: v for k, v in summary.items() if k != "excluded"}, "excluded:", len(report["excluded"]))
-    import card
+    import card, data_docs
+    # Data dictionary from out/decisions.parquet and docs/tables.toml; stops if the columns no longer match.
+    dictionary = data_docs.markdown("out", level=2, source="the file in this dataset")
     with open("out/README.md", "w", encoding="utf-8") as fh:
-        fh.write(card.render(merged, report["excluded"], summary["as_of"]))
+        fh.write(card.render(merged, report["excluded"], summary["as_of"], dictionary))
     if args.dry_run or added == 0 and old is not None:
         print("nothing uploaded" if not args.dry_run else "dry run: nothing uploaded")
         return
