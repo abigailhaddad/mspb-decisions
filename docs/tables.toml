@@ -1,0 +1,37 @@
+# Column descriptions for the published table. src/data_docs.py reads this file and the parquet file and
+# writes docs/data_dictionary.md; it stops with an error if a parquet column is missing here or a column
+# here is not in the parquet, so the dictionary can't drift from the schema.
+#
+# Each description comes from the code that builds the column (src/mspb.py make_record, src/refresh.py)
+# or from the MSPB manifest field it copies. A column listed in `unconfirmed` is one whose meaning MSPB
+# doesn't define; the dictionary marks it.
+
+dataset = "abigailhaddad/mspb-decisions"
+
+[tables.decisions]
+file = "decisions.parquet"
+config = "default"
+grain = "One row per decision file listed in MSPB's JSON decision manifests under https://www.mspb.gov/decisions/, merged across manifests on lower-cased file name."
+primary_key = "id"
+unconfirmed = ["docnumber"]
+
+[tables.decisions.columns]
+id = "The manifest's FILE_NAME, lower-cased. Rows from different manifests are merged on it."
+file = "The manifest's FILE_NAME, kept byte for byte apart from outer whitespace (a few contain double or non-breaking spaces the URL needs)."
+type = "`precedential` or `nonprecedential`, from the manifest's DOCUMENT_TYPE."
+date = "Issued date, YYYY-MM-DD, parsed from the manifest's ISSUED_DATE. Rows with a blank, unreadable or out-of-range date (before 1979-01-01 or after the run date) are left out of the table."
+raw_date = "ISSUED_DATE exactly as in the manifest (e.g. `1983/09/30`)."
+docket = "The manifest's DOCKET_NBR up to the first comma or slash (the first docket when several are listed), whitespace collapsed."
+region = "The two letters at the start of `docket` (e.g. `AT`, `DC`, `SF`), upper-cased. Blank when `docket` doesn't have the form two letters, an optional hyphen, a 3-4 character code, a hyphen (e.g. `AT-0752-...`). The repo does not map these letters to MSPB offices."
+case_code = "The 3-4 character code after `region` in `docket` (e.g. `0752`, `1221`, `315H`), upper-cased. Blank when `docket` doesn't have that form."
+case_kind = "Plain-language label for `case_code` from a fixed list in src/mspb.py (e.g. `0752` and `752P` are `adverse action (ch. 75)`, `1221` is `whistleblower IRA`). For any code not on the list it repeats the code; `(unknown)` when there is no code."
+appellant = "APL_FIRST_NAME and APL_LAST_NAME from the manifest joined with a space, as MSPB lists them."
+agency = "The manifest's AGENCY. All-capitals names (old rows) are converted to title case; `(blank)` when empty. Not otherwise standardized, so one agency can appear under several spellings (e.g. `United States Postal Service` and `U.S. Postal Service`)."
+doc_title = "The manifest's DOCTITLE with underscores turned into spaces and bracketed text removed, mapped to a standard label (`Final Order`, `Remand Order`, `Opinion and Order`, `Final Decision`, `Order`) when it matches one; otherwise as listed; `(blank)` when empty."
+order_kind = "Coarse kind of order, from the first of these phrases found in META_TITLE, DOCTITLE and FILE_NAME together: settled, withdrawn, untimely, remand, stay, quorum, opinion, final order or final decision; otherwise `Other or unknown`. It does not say who won: a `Final order` is just the Board's closing order."
+decision_number = "The manifest's DECISION_NUMBER as listed (e.g. `2016 MSPB 4`); usually blank."
+citation = "The manifest's LEGAL_CITATION as listed (e.g. `27 M.S.P.R. 109`). Some precedential rows hold `NP`, which MSPB does not define."
+docnumber = "The manifest's DOCNUMBER as listed. On most rows it matches the number at the end of the file name (`..._4200926.pdf`); MSPB does not define it, and one value (`2521159`) repeats across hundreds of rows."
+has_text = "True if the manifest row carried any DOCUMENT_CONTENT text, in this manifest or a duplicate of it."
+url = "Link to the decision PDF: https://www.mspb.gov/decisions/precedential/ or .../nonprecedential/ plus the URL-encoded file name."
+manifest = "The saved manifest file the row was taken from (`<type>_<MSPB manifest name>`). When a decision is in several manifests, the first in the order the code reads them wins: the current listing manifests first, then the older ones."

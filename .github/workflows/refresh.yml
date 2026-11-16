@@ -35,6 +35,25 @@ jobs:
         if: ${{ always() }}
         run: '[ -f out/summary.json ] && python -c "import json;d=json.load(open(\"out/summary.json\"));d.pop(\"excluded\");print(d)" >> "$GITHUB_STEP_SUMMARY" || true'
 
+      # Downloadable SQLite: download what is now on Hugging Face, stop if its columns no longer match
+      # docs/tables.toml, build one SQLite file and attach it to the GitHub release `latest-data`. The release
+      # is deleted and recreated whenever the Hugging Face commit changes, so it always holds one file.
+      - name: SQLite file on the latest-data release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python src/data_docs.py fetch data
+          python src/data_docs.py check data
+          sha=$(cat data/REVISION)
+          if gh release view latest-data --json body --jq .body 2>/dev/null | grep -q "$sha"; then
+            echo "latest-data already holds Hugging Face commit $sha; nothing to do"
+            exit 0
+          fi
+          built=$(python src/build_sqlite.py data mspb-decisions.sqlite | tail -n 1)
+          echo "$built"
+          gh release delete latest-data --cleanup-tag --yes 2>/dev/null || true
+          gh release create latest-data mspb-decisions.sqlite --title "Latest data (SQLite)" --notes "SQLite copy of https://huggingface.co/datasets/abigailhaddad/mspb-decisions at commit $sha, built $(date -u +%Y-%m-%d) by the refresh workflow. One table per parquet file; columns are described in docs/data_dictionary.md. ${built#wrote }"
+
       # GitHub disables scheduled workflows in a public repo after 60 days with no commits.
       - name: Keepalive commit
         if: ${{ always() }}
